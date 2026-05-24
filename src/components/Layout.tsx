@@ -23,7 +23,23 @@ export default function Layout({ children }: { children?: ReactNode }) {
             `flex-1 py-3 text-center text-sm font-medium ${isActive ? 'text-black' : 'text-gray-400'}`
           }
         >
-          Manage habits
+          Habits
+        </NavLink>
+        <NavLink
+          to="/friends"
+          className={({ isActive }) =>
+            `flex-1 py-3 text-center text-sm font-medium ${isActive ? 'text-black' : 'text-gray-400'}`
+          }
+        >
+          Friends
+        </NavLink>
+        <NavLink
+          to="/feed"
+          className={({ isActive }) =>
+            `flex-1 py-3 text-center text-sm font-medium ${isActive ? 'text-black' : 'text-gray-400'}`
+          }
+        >
+          Feed
         </NavLink>
       </nav>
     </div>

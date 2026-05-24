@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSwipeable } from 'react-swipeable'
 import { supabase } from '../lib/supabase'
 import { type Habit, type Log, type LogStatus } from '../types'
+import StatusDot from './StatusDot'
 
 interface Props {
   habit: Habit
@@ -33,34 +34,36 @@ function statusBg(status: 'none' | LogStatus): string {
   }
 }
 
-function statusDot(status: 'none' | LogStatus): { char: string; color: string } {
-  switch (status) {
-    case 'complete': return { char: '●', color: 'text-green-500' }
-    case 'partial':  return { char: '◐', color: 'text-amber-500' }
-    case 'skipped':  return { char: '○', color: 'text-gray-400' }
-    default:         return { char: '—', color: 'text-gray-300' }
-  }
-}
 
 export default function HabitLogRow({ habit, log, effectiveDate, onLogChange }: Props) {
   const [expanded, setExpanded]           = useState(false)
   const [quantityInput, setQuantityInput] = useState(log?.value?.toString() ?? '')
   const [saving, setSaving]               = useState(false)
   const rowRef                            = useRef<HTMLDivElement>(null)
+  const quantityInputRef                  = useRef(quantityInput)
 
   useEffect(() => {
     setQuantityInput(log?.value?.toString() ?? '')
   }, [log?.value])
 
   useEffect(() => {
+    quantityInputRef.current = quantityInput
+  }, [quantityInput])
+
+  useEffect(() => {
     if (!expanded) return
-    function handleClickOutside(e: MouseEvent) {
+    function handleOutside(e: PointerEvent) {
       if (rowRef.current && !rowRef.current.contains(e.target as Node)) {
         setExpanded(false)
+        // blur may not fire before pointerdown on mobile, so save explicitly
+        if (habit.type === 'quantity') {
+          const val = parseFloat(quantityInputRef.current)
+          if (!isNaN(val)) saveQuantityValue(val)
+        }
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('pointerdown', handleOutside)
+    return () => document.removeEventListener('pointerdown', handleOutside)
   }, [expanded])
 
   const status: 'none' | LogStatus = log?.status ?? 'none'
@@ -85,9 +88,7 @@ export default function HabitLogRow({ habit, log, effectiveDate, onLogChange }: 
     setSaving(false)
   }
 
-  async function saveQuantity() {
-    const val = parseFloat(quantityInput)
-    if (isNaN(val)) return
+  async function saveQuantityValue(val: number) {
     const nextStatus = computeQuantityStatus(val, habit)
     setSaving(true)
     if (log) {
@@ -103,6 +104,11 @@ export default function HabitLogRow({ habit, log, effectiveDate, onLogChange }: 
       onLogChange(habit.id, data as Log)
     }
     setSaving(false)
+  }
+
+  async function saveQuantity() {
+    const val = parseFloat(quantityInput)
+    if (!isNaN(val)) await saveQuantityValue(val)
   }
 
   function handleSwipe(dir: 'right' | 'left') {
@@ -127,8 +133,6 @@ export default function HabitLogRow({ habit, log, effectiveDate, onLogChange }: 
     preventScrollOnSwipe: false,
   })
 
-  const dot = statusDot(status)
-
   return (
     <div ref={rowRef} className={`border rounded-xl mb-2 overflow-hidden transition-colors ${statusBg(status)} ${saving ? 'opacity-60' : ''}`}>
       {/* Swipe zone: header row only. Clicks/taps on expanded content below are unaffected. */}
@@ -136,7 +140,7 @@ export default function HabitLogRow({ habit, log, effectiveDate, onLogChange }: 
         {...swipeHandlers}
         className="flex items-center gap-3 px-4 py-3 select-none cursor-pointer"
       >
-        <span className={`text-lg leading-none ${dot.color}`}>{dot.char}</span>
+        <StatusDot status={status} noneStyle="dash" />
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm">{habit.name}</p>
           <p className="text-xs text-gray-400">

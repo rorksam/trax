@@ -8,7 +8,7 @@ Wrote `project_context.md` — full design doc covering goals, data model, habit
 
 ---
 
-## 2026-05-23
+## 2026-05-23 Session 1
 
 **Scaffold**
 
@@ -27,7 +27,7 @@ Wrote `project_context.md` — full design doc covering goals, data model, habit
 
 ---
 
-## 2026-05-24
+## 2026-05-23 Session 2
 
 **Build steps 1–4 completed**
 
@@ -65,3 +65,32 @@ Wrote `project_context.md` — full design doc covering goals, data model, habit
 - Delete confirmation: first click arms, second confirms
 
 **Next up:** step 5 — friendships + invite links
+
+---
+
+## 2026-05-24
+
+**Build steps 5–6 completed**
+
+**Step 5 — Friendships + invite links**
+- Migration: `friendships` (composite PK, `CHECK user_a_id < user_b_id`, `ON DELETE RESTRICT`) and `invites` tables with RLS; expanded `users` SELECT policy so friends can read each other's display names
+- `generate_invite()` SECURITY DEFINER RPC: atomically revokes all active invites for caller, creates new 24-char hex token (via `gen_random_uuid()`) with 3-day expiry; `accept_invite(token)` RPC: validates (exists / not revoked / not expired / not self-invite), inserts friendship with correct `user_a_id < user_b_id` ordering, `ON CONFLICT DO NOTHING` makes double-acceptance a no-op
+- Separate GRANT migration required — Supabase local stack revokes PUBLIC execute on functions by default
+- `FriendsPage` (`/friends`): invite link section (generate / copy / revoke, expiry display); friends list with arm-then-confirm-with-cancel remove flow
+- `/invite/:token` public route: unauthenticated users have token stored in `sessionStorage` and are redirected to `/login`; after login or onboarding, pending token is consumed and friendship created; success redirects to `/friends?added=1` with banner
+- Nav expanded to Today | Habits | Friends
+
+**Step 6 — Feed**
+- Migration: `blurbs` table (`UNIQUE(user_id, for_date)`, 140-char CHECK); RLS policies allowing friends to SELECT non-hidden non-archived habits and their logs — hidden habit logs never reach the client
+- `BlurbInput` component at top of Today page: auto-saves on blur, pre-populates from DB, shows char counter under 40 remaining
+- `FeedPage` (`/feed`): live query — fetches friend IDs → visible habits → last-7-days logs + blurbs → computes one card per friend (most recent logged date); sorted by logged-late first, then most recent `logged_at`, then alphabetical
+- Card rendering: category sections with green/amber/gray headings; `detailed` habits show name + dot; `aggregated` habits collapsed to a single `● ◐ · N habits` summary line
+- `StatusDot` shared CSS circle component: `w-2.5 h-2.5 rounded-full` for all states — eliminates Unicode character size inconsistency. `noneStyle='dash'` variant used in Today (dash = not yet logged, circle = skipped); feed always uses circle
+- Dev panel (DEV-only, bottom of Feed): date picker + Seed complete (`ignoreDuplicates` — preserves existing log states) + Clear logs + Seed today shortcut
+- Nav expanded to Today | Habits | Friends | Feed
+
+**Fixes**
+- Quantity habit outside-click: changed `mousedown` → `pointerdown` for mobile compatibility; extracted `saveQuantityValue(val)` so outside-click handler can save via ref without stale closure
+- `formatFeedDateLabel` added to `effectiveDate.ts` using UTC arithmetic to avoid DST edge cases
+
+**Next up:** step 7 — push notifications + 15-minute worker, or settings page (logout, timezone, habit archive) depending on priority

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { consumePendingInvite } from '../lib/invite'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -18,7 +19,8 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      navigate('/')
+      const pendingToken = consumePendingInvite()
+      navigate(pendingToken ? `/invite/${pendingToken}` : '/')
     }
   }
 

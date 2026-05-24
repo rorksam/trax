@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import HabitLogRow from '../components/HabitLogRow'
+import BlurbInput from '../components/BlurbInput'
 import { getEffectiveDate, getEffectiveDateLabel } from '../lib/effectiveDate'
 import { type Habit, type Log } from '../types'
 
@@ -54,7 +55,8 @@ export default function LoggingPage() {
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
       <h1 className="text-xl font-semibold text-white mb-1">Today</h1>
-      <p className="text-sm text-gray-400 mb-6">{dateLabel}</p>
+      <p className="text-sm text-gray-400 mb-4">{dateLabel}</p>
+      <BlurbInput effectiveDate={effectiveDate} />
 
       {habits.length === 0 && (
         <p className="text-sm text-gray-400 text-center mt-12">

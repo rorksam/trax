@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { type Visibility, VISIBILITY_OPTIONS } from '../types'
+import { consumePendingInvite } from '../lib/invite'
 
 export default function OnboardingPage() {
   const { session, refreshProfile } = useAuth()
@@ -33,7 +34,8 @@ export default function OnboardingPage() {
       setLoading(false)
     } else {
       await refreshProfile()
-      navigate('/')
+      const pendingToken = consumePendingInvite()
+      navigate(pendingToken ? `/invite/${pendingToken}` : '/')
     }
   }
 
