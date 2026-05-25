@@ -94,3 +94,51 @@ Wrote `project_context.md` — full design doc covering goals, data model, habit
 - `formatFeedDateLabel` added to `effectiveDate.ts` using UTC arithmetic to avoid DST edge cases
 
 **Next up:** step 7 — push notifications + 15-minute worker, or settings page (logout, timezone, habit archive) depending on priority
+
+---
+
+## 2026-05-25
+
+**Settings page**
+
+- `SettingsPage` (`/settings`): Account section (display name inline edit, sign out), Preferences section (timezone text input, default habit visibility radio), Archived Habits section (list with Restore button)
+- Restore appends to bottom of active sort order (MAX sort_order + 1)
+- All fields auto-save on blur/change with a 2-second "Saved" flash inline
+- No migration needed — all writes are to existing `users` and `habits` tables with existing RLS
+- Nav expanded to Today | Habits | Friends | Feed | Settings
+
+**Step 7 — Push notifications + 15-minute worker**
+
+- Migration: `notification_preferences` (PK user_id+type, defaults seeded by trigger + INSERT for existing users), `push_subscriptions` (UNIQUE on endpoint), `notifications_log` (UNIQUE dedup key user_id+type+fire_date); RLS on all three; pg_cron + pg_net extensions enabled
+- `find_pending_notifications()` SECURITY DEFINER SQL function: returns all (user, type, fire_date) whose local fire_time falls in the current 15-min UTC window; deduped via notifications_log; morning type additionally filtered to only users with at least one habit having no log for the prior effective date; sunday_review filtered to DOW=0; GRANT to service_role
+- `public/manifest.json` + `public/sw.js`: push and notificationclick handlers; manifest link + theme-color meta added to index.html; SW registered in main.tsx
+- `src/lib/pushSubscription.ts`: `subscribeToPush()` — requests permission, creates PushManager subscription, upserts to push_subscriptions; uses `VITE_VAPID_PUBLIC_KEY` env var
+- `supabase/functions/notify-worker/index.ts`: Deno Edge Function; validates x-cron-secret; calls `find_pending_notifications()`; sends via `npm:web-push`; upserts notifications_log with ignoreDuplicates; deletes 410-Gone subscriptions
+- `HabitsPage`: one-time "Enable notifications" banner after first habit (guards on Notification.permission + localStorage)
+- `SettingsPage`: Notifications section — device subscribe button + evening/morning/sunday_review toggles backed by notification_preferences
+
+**Next up:** step 8 — profile view + logging streak
+
+---
+
+## 2026-05-25 Session 2
+
+**Bug fixes**
+
+- `BlurbInput`: changed `px-4` → `pl-4 pr-10` on the input so text no longer runs under the character counter; counter shows `✓` on save (fits tight space)
+- Email verification flow: new `VerifyEmailPage` (`/verify-email`) — shows "check your email" holding page; watches `session` via `AuthContext` and auto-navigates to `/` the moment confirmation fires; `SignupPage` now redirects here instead of directly to `/onboarding`; `/verify-email` added as a public route in `App.tsx`
+- Supabase free tier has a low auth email rate limit (~3–4/hr). For dev: disable "Confirm email" in Supabase dashboard → Authentication → Sign In / Sign Up. Re-enable before prod and wire up a custom SMTP provider (Resend recommended) via Authentication → SMTP Settings.
+
+**Feed timing — NOT YET IMPLEMENTED (live feed kept for testing)**
+
+Agreed behaviour for prod:
+- Feed always shows the **previous effective date** only — never today's in-progress logging
+- Friends with **zero logs** on that date are completely absent (no card, no placeholder)
+- Feed is a **static snapshot** fetched once on mount; no real-time subscription
+- The backfill live-update window (4am–11am, matching the morning catch-up notification) is deferred until previous-day editing is built
+
+Implementation when ready:
+1. In `FeedPage`, replace the `last 7 days` date range with `previous_effective_date` (one day before `getEffectiveDate(userTimezone)`)
+2. Filter out friends whose log/blurb join returns zero rows for that date
+3. Remove any `.on('postgres_changes', ...)` real-time subscription if one is present (currently the feed is a plain fetch — confirm before removing)
+4. The morning backfill live window can be added later: re-enable real-time only between 4am and 11am local time using the same `getEffectiveDate` helper to gate the subscription

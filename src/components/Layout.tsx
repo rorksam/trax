@@ -41,6 +41,14 @@ export default function Layout({ children }: { children?: ReactNode }) {
         >
           Feed
         </NavLink>
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            `flex-1 py-3 text-center text-sm font-medium ${isActive ? 'text-black' : 'text-gray-400'}`
+          }
+        >
+          Settings
+        </NavLink>
       </nav>
     </div>
   )

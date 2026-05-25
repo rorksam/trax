@@ -53,10 +53,10 @@ export default function BlurbInput({ effectiveDate }: Props) {
         value={text}
         onChange={e => setText(e.target.value)}
         onBlur={save}
-        className="w-full bg-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-white/30"
+        className="w-full bg-white/10 rounded-xl pl-4 pr-10 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-white/30"
       />
-      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-        {saved ? 'Saved' : text.length > 100 ? `${140 - text.length}` : ''}
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 pointer-events-none select-none">
+        {saved ? '✓' : text.length > 100 ? `${140 - text.length}` : ''}
       </span>
     </div>
   )

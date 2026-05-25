@@ -18,7 +18,7 @@ export default function SignupPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      navigate('/onboarding')
+      navigate('/verify-email')
     }
   }
 

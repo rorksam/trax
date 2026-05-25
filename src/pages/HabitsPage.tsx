@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import HabitForm from '../components/HabitForm'
 import { type Habit } from '../types'
+import { subscribeToPush } from '../lib/pushSubscription'
 
 function targetSummary(habit: Habit): string {
   if (habit.type !== 'quantity') return ''
@@ -74,9 +75,10 @@ function SortableHabitRow({
 
 export default function HabitsPage() {
   const { session, profile } = useAuth()
-  const [habits, setHabits]       = useState<Habit[]>([])
-  const [loading, setLoading]     = useState(true)
-  const [formHabit, setFormHabit] = useState<Habit | null | undefined>(undefined)
+  const [habits, setHabits]           = useState<Habit[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [formHabit, setFormHabit]     = useState<Habit | null | undefined>(undefined)
+  const [showNotifBanner, setShowNotifBanner] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -95,6 +97,17 @@ export default function HabitsPage() {
   }
 
   useEffect(() => { load() }, [session])
+
+  useEffect(() => {
+    if (
+      habits.length > 0 &&
+      'Notification' in window &&
+      Notification.permission === 'default' &&
+      !localStorage.getItem('notif-prompt-seen')
+    ) {
+      setShowNotifBanner(true)
+    }
+  }, [habits])
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -123,10 +136,32 @@ export default function HabitsPage() {
     load()
   }
 
+  function dismissNotifBanner() {
+    localStorage.setItem('notif-prompt-seen', '1')
+    setShowNotifBanner(false)
+  }
+
+  async function enableNotifications() {
+    localStorage.setItem('notif-prompt-seen', '1')
+    setShowNotifBanner(false)
+    await subscribeToPush()
+  }
+
   if (loading) return null
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
+      {showNotifBanner && (
+        <div className="bg-white rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
+          <p className="flex-1 text-sm text-gray-700">Get evening reminders about your habits.</p>
+          <button onClick={enableNotifications} className="text-sm text-blue-600 font-medium shrink-0">
+            Enable
+          </button>
+          <button onClick={dismissNotifBanner} className="text-sm text-gray-400 shrink-0">
+            Not now
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold text-white">My habits</h1>
         {formHabit === undefined && (
